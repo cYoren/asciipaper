@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>asciipaper: live ASCII wallpapers for Windows, Linux, macOS and Android</title>
-<meta name="description" content="Free, open source live wallpapers made of ASCII characters. 60 one-click styles (LEGO, pixel art, CRT, Game Boy, CMYK, Matrix code), turn any picture, GIF or video into a moving wallpaper, and let AI design new ones.">
+<title>ASCII Paper: live ASCII wallpapers and an animated new tab</title>
+<meta name="description" content="Live wallpapers made of ASCII characters, for Android, Mac, Windows and your browser's new tab. 60 one-click styles (LEGO, pixel art, CRT, Game Boy, CMYK, Matrix code), turn any picture, GIF or video into a moving wallpaper, and let AI design new ones.">
 <meta name="theme-color" content="#060707">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="canonical" href="https://cyoren.github.io/asciipaper/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="asciipaper: live ASCII wallpapers">
-<meta property="og:description" content="60 one-click styles, any picture or video turned into a moving ASCII wallpaper. Free for Windows, Linux and macOS.">
+<meta property="og:title" content="ASCII Paper: live ASCII wallpapers">
+<meta property="og:description" content="60 one-click styles, any picture or video turned into a moving ASCII wallpaper. On Android, Mac, Windows, Chrome and Firefox.">
 <meta property="og:url" content="https://cyoren.github.io/asciipaper/">
 <meta property="og:image" content="https://cyoren.github.io/asciipaper/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -18,10 +18,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap">
 <script type="application/ld+json">
-{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "asciipaper",
- "applicationCategory": "DesktopEnhancementApplication", "operatingSystem": "Windows 10, Windows 11, Linux, macOS, Android",
- "offers": {"@type": "Offer", "price": "0"}, "license": "https://opensource.org/licenses/MIT",
- "downloadUrl": "https://github.com/cYoren/asciipaper/releases/latest", "image": "https://cyoren.github.io/asciipaper/og.jpg",
+{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "ASCII Paper",
+ "applicationCategory": "DesktopEnhancementApplication", "operatingSystem": "Android, macOS, Windows, Chrome, Firefox",
+ "installUrl": "https://play.google.com/store/apps/details?id=io.github.cyoren.asciipaper", "image": "https://cyoren.github.io/asciipaper/og.jpg",
  "description": "Live, interactive ASCII wallpapers with 60 one-click styles. Port any picture, GIF or video."}
 </script>
 <style>
@@ -69,15 +68,14 @@
 <header class="hero">
   <iframe id="demo" src="demos/fluid.html" title="A live asciipaper wallpaper: move your pointer over it"></iframe>
   <div class="panel">
-    <div class="brand"><img src="icon.svg" alt="">asciipaper</div>
+    <div class="brand"><img src="icon.svg" alt="">ASCII Paper</div>
     <h1>Your desktop, drawn in characters.</h1>
-    <p class="lede">Live wallpapers that move with your mouse. One click turns them into LEGO, pixel art, CRT glass, Game Boy or Matrix code, and any picture or video you love becomes one too. Free and open source.</p>
+    <p class="lede">Live wallpapers that move with your mouse. One click turns them into LEGO, pixel art, CRT glass, Game Boy or Matrix code, and any picture or video you love becomes one too.</p>
     <div class="cta">
-      <a class="button primary" href="https://github.com/cYoren/asciipaper/releases/latest">⬇ Windows</a>
-      <a class="button" href="#install">Linux</a>
-      <a class="button" href="#install">macOS</a>
-      <a class="button" href="https://github.com/cYoren/asciipaper/releases/latest">Android</a>
-      <a class="button" href="https://github.com/cYoren/asciipaper">★ GitHub</a>
+      <a class="button primary" href="https://play.google.com/store/apps/details?id=io.github.cyoren.asciipaper">Google Play</a>
+      <a class="button" href="https://chromewebstore.google.com/detail/gncbcfifebakifjkjijlklaelbecofgp">Chrome new tab</a>
+      <a class="button" href="https://addons.mozilla.org/firefox/addon/ascii-paper-animated-new-tab/">Firefox new tab</a>
+      <a class="button" href="#install">Mac and Windows</a>
     </div>
   </div>
   <nav class="styles" aria-label="Try a style">
@@ -108,17 +106,17 @@
   <section class="platforms" id="install">
     <h2>Get it</h2>
     <div class="grid">
-      <div class="card"><h3>Windows 10 and 11</h3><p>Download the installer from <a href="https://github.com/cYoren/asciipaper/releases/latest">Releases</a> and run it. No admin rights needed. It lives in the tray and starts with Windows.</p></div>
-      <div class="card"><h3>Linux</h3><p>Hyprland, KDE Plasma, Sway, niri, COSMIC and other Wayland desktops.</p></div>
-      <div class="card"><h3>Android</h3><p>A live wallpaper for your phone. Download the <code>.apk</code> from <a href="https://github.com/cYoren/asciipaper/releases/latest">Releases</a>, open asciipaper, pick a wallpaper and a style, and set it. It ripples under your finger.</p></div>
-      <div class="card"><h3>macOS</h3><p>Export any wallpaper as a ZIP (from Windows or Linux, or one a friend shares), unzip, and open <code>index.html</code> in the free <a href="https://sindresorhus.com/plash">Plash</a> app.</p></div>
+      <div class="card"><h3>Android</h3><p>A live wallpaper for your phone that ripples under your finger. <a href="https://play.google.com/store/apps/details?id=io.github.cyoren.asciipaper">Get it on Google Play</a>.</p></div>
+      <div class="card"><h3>Chrome, Brave and Edge</h3><p>Every new tab opens on a moving scene, with a clock and search. <a href="https://chromewebstore.google.com/detail/gncbcfifebakifjkjijlklaelbecofgp">Add it from the Chrome Web Store</a>.</p></div>
+      <div class="card"><h3>Firefox</h3><p>The same animated new tab. <a href="https://addons.mozilla.org/firefox/addon/ascii-paper-animated-new-tab/">Add it from Firefox Add-ons</a>.</p></div>
+      <div class="card"><h3>Mac</h3><p>The full Studio and live desktop wallpaper, with a Safari new tab inside. Coming to the Mac App Store.</p></div>
+      <div class="card"><h3>Windows 10 and 11</h3><p>Lives in the tray and starts with Windows. Coming to the Microsoft Store.</p></div>
+      <div class="card"><h3>Developers</h3><p>The renderer behind it is open source: <a href="https://github.com/cYoren/asciipaper-engine">ASCII Paper engine</a>. Write a scene, snapshot it, embed it in a page.</p></div>
     </div>
-    <pre>git clone https://github.com/cYoren/asciipaper &amp;&amp; cd asciipaper &amp;&amp; ./install.sh   # Linux
-claude mcp add --scope user asciipaper -- asciipaper mcp                            # let Claude design wallpapers</pre>
   </section>
 </main>
 
-<footer>MIT licensed · <a href="https://github.com/cYoren/asciipaper">github.com/cYoren/asciipaper</a> · Fluid is an offline port of asciify.org's (MIT)</footer>
+<footer>ASCII Paper by cYoren · <a href="privacy.html">Privacy</a> · <a href="support.html">Support</a> · <a href="community.html">Community</a> · <a href="https://github.com/cYoren/asciipaper-engine">Open-source engine</a></footer>
 
 <script>
   const STYLES = [['fluid', 'Fluid'], ['lego', 'LEGO'], ['crt', 'CRT'], ['gameboy', 'Game Boy'], ['cmyk', 'CMYK print'],
