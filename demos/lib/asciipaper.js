@@ -6,9 +6,14 @@
   if (window.asciipaper?.ascii) return;
   const here = document.currentScript?.src || location.href;   // lib/ (for media.glsl)
 
-  const options = Object.assign({fps: 24, idleFps: 12, quality: 1, pointer: 1, speed: 1, clicks: false, paused: false},
+  const options = Object.assign({fps: 24, idleFps: 12, quality: 1, pointer: 1, speed: .7, clicks: false, paused: false},
                                 window.__asciipaperOptions);
   const pointer = {x: .5, y: .5, vx: 0, vy: 0, down: false, inside: false, moved: -1e9, clicks: []};
+  const reactive = {x:0,y:0,audio:0};
+  addEventListener('message', e => {
+    if (e.source !== parent || e.data?.type !== 'paper-reactive') return;
+    for (const k of ['x','y','audio']) reactive[k] = Math.max(k === 'audio' ? 0 : -2, Math.min(k === 'audio' ? 1 : 2, Number(e.data[k]) || 0));
+  });
 
   // ---- Frame pacing. Pages keep calling requestAnimationFrame as usual; callbacks run at `fps`
   // while the pointer is active, `idleFps` otherwise, and not at all while paused. When idle we wait
@@ -99,8 +104,8 @@
   // sets uniforms, so a full screen of characters costs about as much as one quad.
   const HEADER = `precision highp float;
 varying vec2 v_uv;
-uniform float u_time, u_aspect, u_down, u_strength, u_idle;
-uniform vec2 u_grid, u_size, u_pointer, u_velocity;
+uniform float u_time, u_aspect, u_down, u_strength, u_idle, u_audio;
+uniform vec2 u_grid, u_size, u_pointer, u_velocity, u_tilt;
 uniform vec3 u_clicks[8];
 uniform sampler2D u_data;
 `;
@@ -125,7 +130,8 @@ if(m<5.5)return clamp(length(fract(a/4.0)-0.5)*1.41,0.0,1.0);if(m<6.5)return fra
 if(m<7.5)return fract(a.y/4.0);if(m<8.5)return fract(a.x/4.0);if(m<9.5)return fract((a.x+a.y)/4.0);
 if(m<10.5)return fract(sin(dot(floor(a),vec2(12.9898,78.233)))*43758.5453);
 return fract(52.9829189*fract(dot(floor(a),vec2(0.06711056,0.00583715))));}
-void main(){vec4 c=cell(ap_interact(vec2(v_uv.x,1.0-v_uv.y)));float l=clamp(c.a,0.0,1.0);vec3 rgb=clamp(c.rgb,0.0,1.0);
+void main(){vec2 uv=vec2(v_uv.x,1.0-v_uv.y);uv=clamp((uv-0.5)/(1.0+u_audio*0.08)+0.5+u_tilt*0.06,0.0,1.0);
+vec4 c=cell(ap_interact(uv));float l=clamp(c.a*(1.0+u_audio*0.5),0.0,1.0);vec3 rgb=clamp(c.rgb*(1.0+u_audio*0.5),0.0,1.0);
 if(u_interact>0.5&&u_interact<1.5){l=clamp(l+ap_reach*0.45,0.0,1.0);rgb=clamp(rgb+ap_reach*0.25,0.0,1.0);}
 if(u_dither>0.5){float t=ap_dither(gl_FragCoord.xy)-0.5;if(l>0.0)l=clamp(l+t/max(u_glyphs-1.0,1.0),0.0,1.0);
 if(u_paletteSize>0.5)rgb=clamp(rgb+t*pow(max(u_paletteSize-1.0,1.0),-0.333),0.0,1.0);}
@@ -135,10 +141,11 @@ float g=u_useLut>0.5?texture2D(u_lut,vec2((floor(l*255.0+0.5)+0.5)/256.0,0.5)).a
 gl_FragColor=vec4(g/255.0,rgb);}`;
   // Pass 2: `fill` (0..1) lays each glyph's colour faintly behind it, scaled by its density, so pictures read
   // through the gaps; `shape` draws pixels, tiles, dots, LEGO… instead of glyphs; fxA/B/C are the post effects.
-  const GLYPHS = `precision highp float;varying vec2 v_uv;uniform sampler2D cells,atlas;uniform vec2 grid,cell,atlasSize;uniform float tile,pad,fill,glyphs,shape,time;uniform vec3 bg;uniform vec4 fxA,fxB,fxC;
+  const GLYPHS = `precision highp float;varying vec2 v_uv;uniform sampler2D cells,atlas;uniform vec2 grid,cell,atlasSize;uniform float tile,pad,fill,glyphs,shape,time;uniform vec3 bg;uniform vec4 fxA,fxB,fxC,fxD,fxE;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 vec4 at(vec2 p){return texture2D(cells,(floor(p*grid)+0.5)/grid);}
 float inside(float d){return clamp(0.5-d,0.0,1.0);}
+float lum(vec4 e){return dot(e.gba,vec3(0.299,0.587,0.114))*min(e.r*255.0,1.0);}
 float box(vec2 q,vec2 h){vec2 d=abs(q)-h;return length(max(d,0.0))+min(max(d.x,d.y),0.0);}
 vec3 cmyk(vec2 px){vec3 col=bg;vec4 ang=vec4(0.26,1.31,0.0,0.79);float s=min(cell.x,cell.y)*0.9;
 for(int k=0;k<4;k++){float a=ang[k];mat2 r=mat2(cos(a),-sin(a),sin(a),cos(a));vec2 q=r*px,c=(floor(q/s)+0.5)*s;
@@ -149,9 +156,18 @@ return col;}
 vec3 draw(vec2 p){vec4 d=at(p);vec2 l=fract(vec2(p.x,1.0-p.y)*grid);float g=floor(d.r*255.0+0.5),v=g/max(glyphs-1.0,1.0),s=floor(shape+0.5);
 vec3 under=bg+d.gba*fill*v,c=d.gba;
 if(s<0.5){float cols=floor(atlasSize.x/tile);vec2 uv=(vec2(mod(g,cols)*tile,floor(g/cols)*(ceil(cell.y)+pad*2.0))+pad+l*cell)/atlasSize;return mix(under,c,texture2D(atlas,uv).a);}
-if(s>11.5)return cmyk(p*grid*cell);
+if(s>11.5&&s<12.5)return cmyk(p*grid*cell);
 vec2 q=(l-0.5)*cell;float r=min(cell.x,cell.y)*0.5,gap=max(1.0,r*0.12),k=0.0;
 if(g<0.5&&s!=4.0)return under;
+if(s>12.5){vec2 id=floor(p*grid);
+if(s<13.5){vec2 u=l-0.5;if(hash(id)>0.5)u.x=-u.x;float d=min(abs(length(u-0.5)-0.5),abs(length(u+0.5)-0.5));k=inside(d*r*2.0-max(0.7,r*0.45*v));}
+else if(s<14.5){vec2 a=abs(q);k=inside(max(a.x*0.866+a.y*0.5,a.y)-r*1.05*sqrt(v));}
+else if(s<15.5){vec2 x=p*grid*cell;float sp=max(4.0,r*1.2),w=0.6;
+k=inside(abs(mod(x.x+x.y,sp)-sp*0.5)-w)*step(0.15,v);k=max(k,inside(abs(mod(x.x-x.y,sp)-sp*0.5)-w)*step(0.4,v));
+k=max(k,inside(abs(mod(x.y,sp)-sp*0.5)-w)*step(0.65,v));k=max(k,inside(abs(mod(x.x,sp)-sp*0.5)-w)*step(0.85,v));}
+else if(s<16.5){k=inside(min(abs(q.x-q.y),abs(q.x+q.y))*0.707-max(0.8,r*0.2))*inside(box(q,vec2(r*0.78)));c*=0.85+0.3*hash(id+0.5);}
+else{for(int i=0;i<6;i++){float fi=float(i);if(hash(id+fi*7.1)<v*1.1){vec2 o=vec2(hash(id+fi*3.3),hash(id+fi*5.7))-0.5;k=max(k,inside(length(q-o*cell*0.8)-max(0.8,r*0.2)));}}}
+return mix(under,c,k);}
 if(s<1.5)return c;
 if(s<2.5||s>10.5){k=inside(box(q,cell*0.5-gap));
 if(s>10.5){vec2 id=floor(p*grid);c+=pow(max(0.0,sin(time*2.0+hash(id)*6.283)),24.0)*inside(length(q+r*0.35)-r*0.25)*0.9;}}
@@ -166,12 +182,22 @@ else if(s<9.5)k=inside(abs(q.x+q.y)*0.707-r*0.75*v);
 else{float h=r*(0.35+0.6*v);k=inside(box(q,vec2(h)));c*=q.y<-h*0.35?1.25:q.x>h*0.35?0.62:1.0;}
 return mix(under,c,k);}
 void main(){vec2 p=v_uv;
-if(fxA.z>0.0){vec2 o=p-0.5;p=0.5+o*(1.0+fxA.z*0.35*dot(o,o)*4.0);if(p.x<0.0||p.x>1.0||p.y<0.0||p.y>1.0){gl_FragColor=vec4(0.0,0.0,0.0,1.0);return;}}
+if(fxE.y>0.0){p.x=0.5-abs(p.x-0.5);if(fxE.y>0.5)p.y=0.5-abs(p.y-0.5);}
+float roll=fxD.y>0.0?smoothstep(0.05,0.0,abs(p.y-fract(1.0-time*0.06))):0.0;
+if(fxD.y>0.0)p.x+=(hash(vec2(floor(p.y*grid.y*2.0),floor(time*8.0)))-0.5)*0.012*fxD.y*(0.2+roll*5.0);
 if(fxB.y>0.0){float t=floor(time*9.0),band=floor(p.y*18.0+hash(vec2(t,3.0))*6.0);if(hash(vec2(band,t))<fxB.y*0.35)p.x=fract(p.x+(hash(vec2(t,band))-0.5)*0.12*fxB.y);}
 vec3 col=draw(p);
-if(fxA.w>0.0){float o=fxA.w*6.0/(grid.x*cell.x);col.r=draw(p+vec2(o,0.0)).r;col.b=draw(p-vec2(o,0.0)).b;}
+float split=fxA.w+fxD.y*0.6;
+if(split>0.0){float o=split*6.0/(grid.x*cell.x);col.r=draw(p+vec2(o,0.0)).r;col.b=draw(p-vec2(o,0.0)).b;}
 if(fxB.z>0.0){vec3 b=vec3(0.0);for(int i=-1;i<=1;i++)for(int j=-1;j<=1;j++){vec4 e=texture2D(cells,(floor(p*grid)+vec2(float(i),float(j))+0.5)/grid);
 b+=e.gba*min(e.r*255.0,1.0)/(1.0+float(i*i+j*j));}col+=b*fxB.z*0.22;}
+if(fxD.z>0.0){vec3 st=vec3(0.0);float n=1.0+floor(hash(vec2(floor(p.x*grid.x),1.0))*12.0*fxD.z*(0.6+0.4*sin(time*0.4+p.x*9.0)));
+for(int i=1;i<=16;i++){if(float(i)>n)break;vec4 e=at(p+vec2(0.0,float(i)/grid.y));if(lum(e)>1.0-fxD.z*0.75)st=max(st,e.gba*(1.0-float(i)/(n+1.0)));}col=max(col,st);}
+if(fxD.x>0.0||fxE.x>0.0){vec2 dx=vec2(1.0/grid.x,0.0),dy=vec2(0.0,1.0/grid.y);float gx=lum(at(p+dx))-lum(at(p-dx)),gy=lum(at(p+dy))-lum(at(p-dy));
+col=bg+(col-bg)*(1.0+length(vec2(gx,gy))*fxD.x*3.0);col*=1.0+(gx-gy)*fxE.x*1.4;}
+if(fxD.w>0.0){vec3 b=vec3(0.0);for(int i=-2;i<=2;i++)for(int j=-2;j<=2;j++){vec4 e=at(p+vec2(float(i),float(j))*1.5/grid);b+=e.gba*min(e.r*255.0,1.0)+bg*(1.0-min(e.r*255.0,1.0));}
+col=mix(col,b/25.0,smoothstep(0.12,0.42,abs(v_uv.y-0.5))*fxD.w);}
+if(fxC.w>0.0){float n=mix(10.0,2.0,fxC.w);col=floor(clamp(col,0.0,1.0)*n+0.5)/n;}
 if(fxC.x!=0.0){float y=dot(col,vec3(0.299,0.587,0.114));col=mix(vec3(y),col,1.0+fxC.x);}
 if(fxC.y!=0.0){float a=fxC.y*6.283;vec3 k=vec3(0.57735);col=col*cos(a)+cross(k,col)*sin(a)+k*dot(k,col)*(1.0-cos(a));}
 if(fxA.y>0.0)col*=1.0-fxA.y*0.55*(0.5+0.5*cos(gl_FragCoord.y*2.094));
@@ -179,25 +205,31 @@ if(fxA.x>0.0)col*=1.0-fxA.x*smoothstep(0.35,1.0,length(v_uv-0.5)*1.41);
 if(fxB.x>0.0)col+=(hash(gl_FragCoord.xy+fract(time*7.0)*91.0)-0.5)*fxB.x*0.35;
 if(fxB.w>0.0)col=mix(col,vec3(0.82),step(1.0-fxB.w*0.004,hash(floor(gl_FragCoord.xy/2.0)+floor(time*12.0)*7.31)));
 if(fxC.z>0.0)col*=1.0-fxC.z*0.12*hash(vec2(floor(time*20.0),5.0));
+if(fxD.y>0.0)col+=roll*fxD.y*0.25*hash(gl_FragCoord.xy*0.37+time);
+if(fxE.z>0.0){vec2 a=vec2(0.15+0.12*sin(time*0.13),0.85+0.08*cos(time*0.17)),b=vec2(0.9+0.06*cos(time*0.11),0.1+0.1*sin(time*0.09));
+vec3 leak=vec3(1.0,0.42,0.12)*smoothstep(0.75,0.0,length((v_uv-a)*vec2(1.4,1.0)))+vec3(0.95,0.2,0.45)*smoothstep(0.6,0.0,length((v_uv-b)*vec2(1.4,1.0)))*0.7;
+col=1.0-(1.0-col)*(1.0-clamp(leak*0.55*fxE.z,0.0,1.0));}
 gl_FragColor=vec4(clamp(col,0.0,1.0),1.0);}`;
   const CPU_CELL = 'vec4 cell(vec2 uv){return texture2D(u_data,uv);}';
   const PAD = 3;
   // Look names, by index: the same tables as native/spec.c. A config may also give the index.
-  const SHAPES = ['glyph', 'pixel', 'mosaic', 'dots', 'led', 'lego', 'cross', 'diamond', 'lines', 'diagonal', 'voxel', 'disco', 'cmyk'];
+  const SHAPES = ['glyph', 'pixel', 'mosaic', 'dots', 'led', 'lego', 'cross', 'diamond', 'lines', 'diagonal', 'voxel', 'disco', 'cmyk', 'truchet', 'hex', 'crosshatch', 'stitch', 'stipple'];
   const DITHERS = ['none', 'bayer2', 'bayer4', 'bayer8', 'bayer16', 'halftone', 'radial', 'linesH', 'linesV', 'linesD', 'whiteNoise', 'blueNoise'];
   const INTERACTIONS = ['none', 'glow', 'magnify', 'repel', 'attract', 'swirl', 'ripple'];
-  const FX = ['vignette', 'scanlines', 'crt', 'rgbSplit', 'grain', 'glitch', 'bloom', 'dust', 'saturation', 'hue', 'flicker', ''];
+  const FX = ['vignette', 'scanlines', '', 'rgbSplit', 'grain', 'glitch', 'bloom', 'dust', 'saturation', 'hue', 'flicker', 'posterize', 'edgeGlow', 'vhs', 'pixelSort', 'tiltShift', 'emboss', 'mirror', 'lightLeak', ''];
   const named = (v, names) => typeof v === 'number' ? v : Math.max(0, names.indexOf(v));
   const rgb = v => (v.match(/[0-9a-f]{2}/gi) || ['00', '00', '00']).map(h => parseInt(h, 16) / 255);
   let lastScene = null;
+  let beat = 0;   // performance.now() of the last drawn frame; the macOS host watches it for stalls
 
   function ascii(config = {}) {
     const cfg = Object.assign({charset: ' .:-=+*#%@', cell: 8, aspect: .6, maxCells: 40000, background: '#080909',
       font: '"JetBrains Mono", ui-monospace, monospace', time: 0, period: 2000 * Math.PI, fill: 0}, config);
     const chars = [...cfg.charset];
     if (chars.length > 256) throw new Error('asciipaper: charset is limited to 256 glyphs');
+    const embedded = !!cfg.canvas;   // a canvas you placed yourself (a page section, a card): leave its layout alone
     const canvas = cfg.canvas || (document.body || document.documentElement).appendChild(document.createElement('canvas'));
-    canvas.style.cssText += ';position:fixed;inset:0;width:100vw;height:100vh;display:block';
+    if (!embedded) canvas.style.cssText += ';position:fixed;inset:0;width:100vw;height:100vh;display:block';
     canvas.addEventListener('webglcontextlost', e => e.preventDefault());
     canvas.addEventListener('webglcontextrestored', () => location.reload());   // e.g. after suspend
     const gl = canvas.getContext('webgl', {antialias: false, depth: false, stencil: false, alpha: false, preserveDrawingBuffer: !!window.__asciipaperThumbnail || /[?&]thumbnail\b/.test(location.search)});
@@ -226,12 +258,12 @@ gl_FragColor=vec4(clamp(col,0.0,1.0),1.0);}`;
     gl.uniform1f(glyphProg.u('fill'), cfg.fill); gl.uniform1f(glyphProg.u('glyphs'), chars.length);
     gl.uniform1f(glyphProg.u('shape'), named(cfg.shape || 0, SHAPES));
     const fx = FX.map(k => Number(cfg.effects?.[k]) || 0);
-    ['fxA', 'fxB', 'fxC'].forEach((k, i) => gl.uniform4fv(glyphProg.u(k), fx.slice(i * 4, i * 4 + 4)));
+    ['fxA', 'fxB', 'fxC', 'fxD', 'fxE'].forEach((k, i) => gl.uniform4fv(glyphProg.u(k), fx.slice(i * 4, i * 4 + 4)));
     gl.useProgram(cellProg);
     const palette = (cfg.palette || []).slice(0, 16).map(rgb);
     // interaction: how the wallpaper answers the pointer, on top of whatever the scene does itself
     const interaction = typeof cfg.interaction === 'string' ? {mode: cfg.interaction} : cfg.interaction || {};
-    gl.uniform1f(cellProg.u('u_interact'), named(interaction.mode || 0, INTERACTIONS));
+    gl.uniform1f(cellProg.u('u_interact'), named(interaction.mode ?? 'repel', INTERACTIONS));
     gl.uniform1f(cellProg.u('u_interactStrength'), interaction.strength ?? 1); gl.uniform1f(cellProg.u('u_interactRadius'), interaction.radius ?? .25);
     gl.uniform1f(cellProg.u('u_dither'), named(cfg.dither || 0, DITHERS)); gl.uniform1f(cellProg.u('u_paletteSize'), palette.length);
     if (palette.length) gl.uniform3fv(cellProg.u('u_palette'), palette.flat());
@@ -262,7 +294,8 @@ gl_FragColor=vec4(clamp(col,0.0,1.0),1.0);}`;
     };
 
     function resize() {
-      const W = innerWidth, H = innerHeight, dpr = devicePixelRatio || 1;
+      const W = embedded ? Math.max(1, canvas.clientWidth) : innerWidth, H = embedded ? Math.max(1, canvas.clientHeight) : innerHeight;
+      const dpr = devicePixelRatio || 1;
       canvas.width = Math.max(1, Math.round(W * dpr)); canvas.height = Math.max(1, Math.round(H * dpr));
       const cellW = Math.max(cfg.cell, Math.sqrt(W * H * cfg.aspect / cfg.maxCells));
       Object.assign(scene, {width: W, height: H, cols: Math.max(1, Math.floor(W / cellW)), rows: Math.max(1, Math.floor(H * cfg.aspect / cellW))});
@@ -282,7 +315,8 @@ gl_FragColor=vec4(clamp(col,0.0,1.0),1.0);}`;
       const atlasRow = Math.ceil(ch) + PAD * 2;
       atlas.width = tile * atlasCols; atlas.height = atlasRow * Math.ceil(chars.length / atlasCols);
       if (atlas.height > gl.getParameter(gl.MAX_TEXTURE_SIZE)) throw new Error('Character atlas exceeds the device texture limit');
-      ax.font = `${cfg.weight || 400} ${.9 * Math.min(cw / .55, ch)}px ${cfg.font}`;
+      const cjk = chars.some(c => /[\u2e80-\u9fff\uff65-\uff9f]/u.test(c));
+      ax.font = `${cfg.weight || 400} ${.9 * Math.min(cw / (cjk ? 1 : .55), ch)}px ${cfg.font}`;
       ax.textAlign = 'center'; ax.textBaseline = 'middle'; ax.fillStyle = '#fff';
       chars.forEach((c, i) => ax.fillText(c, (i % atlasCols) * tile + PAD + cw / 2, Math.floor(i / atlasCols) * atlasRow + PAD + ch / 2));
       gl.activeTexture(gl.TEXTURE1); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas);
@@ -295,6 +329,14 @@ gl_FragColor=vec4(clamp(col,0.0,1.0),1.0);}`;
       cfg.resize?.(scene);
     }
     addEventListener('resize', resize); resize();
+    if (embedded) {
+      // Pointer over an embedded canvas is measured against the canvas, not the page.
+      canvas.addEventListener('pointermove', e => {
+        const r = canvas.getBoundingClientRect();
+        Object.assign(pointer, {x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height, inside: true, moved: performance.now()});
+      }, {passive: true});
+      if (typeof ResizeObserver === 'function') new ResizeObserver(resize).observe(canvas);
+    }
 
     const clicks = new Float32Array(24);
     const captures = [];
@@ -309,6 +351,7 @@ gl_FragColor=vec4(clamp(col,0.0,1.0),1.0);}`;
     let previous = 0;
     function frame(now) {
       requestAnimationFrame(frame);
+      beat = now;
       const dt = (previous ? Math.min(.1, (now - previous) / 1000) : 1 / 60) * options.speed * (cfg.pace || 1); previous = now;
       scene.time = cfg.time + (scene.time - cfg.time + dt) % cfg.period;   // wrapped: floats stay precise for weeks
       cfg.update?.(scene, dt);
@@ -319,6 +362,7 @@ gl_FragColor=vec4(clamp(col,0.0,1.0),1.0);}`;
       shown.forEach((c, i) => clicks.set([c.x, c.y, (now - c.time) / 1000], i * 3));
       for (let i = shown.length; i < 8; i++) clicks[i * 3 + 2] = 1e4;
       gl.uniform1f(cellProg.u('u_time'), scene.time);
+      gl.uniform2f(cellProg.u('u_tilt'), reactive.x, reactive.y); gl.uniform1f(cellProg.u('u_audio'), reactive.audio);
       gl.uniform2f(cellProg.u('u_pointer'), pointer.x, pointer.y); gl.uniform2f(cellProg.u('u_velocity'), pointer.vx, pointer.vy);
       gl.uniform1f(cellProg.u('u_down'), pointer.down ? 1 : 0); gl.uniform1f(cellProg.u('u_strength'), options.pointer);
       gl.uniform1f(cellProg.u('u_idle'), (now - pointer.moved) / 1000); gl.uniform3fv(cellProg.u('u_clicks'), clicks);
@@ -411,6 +455,7 @@ gl_FragColor=vec4(clamp(col,0.0,1.0),1.0);}`;
 
   window.asciipaper = {options, pointer, set, ascii, spec, load, patch,
     get ready() { return !!lastScene; },
+    get beat() { return beat; },
     capture: () => lastScene ? lastScene.capture() : Promise.reject(new Error('Preview is still loading')),
     onChange(callback) { addEventListener('asciipaper-settings', event => callback(event.detail)); }};
   set({});
