@@ -21,7 +21,7 @@
 {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "asciipaper",
  "applicationCategory": "DesktopEnhancementApplication", "operatingSystem": "Windows 10, Windows 11, Linux, macOS, Android",
  "offers": {"@type": "Offer", "price": "0"}, "license": "https://opensource.org/licenses/MIT",
- "downloadUrl": "https://github.com/cYoren/asciipaper/releases/latest", "image": "https://cyoren.github.io/asciipaper/og.jpg",
+ "downloadUrl": "https://github.com/cYoren/asciipaper-engine/releases/latest", "image": "https://cyoren.github.io/asciipaper/og.jpg",
  "description": "Live, interactive ASCII wallpapers with 60 one-click styles. Port any picture, GIF or video."}
 </script>
 <style>
@@ -73,11 +73,11 @@
     <h1>Your desktop, drawn in characters.</h1>
     <p class="lede">Live wallpapers that move with your mouse. One click turns them into LEGO, pixel art, CRT glass, Game Boy or Matrix code, and any picture or video you love becomes one too. Free and open source.</p>
     <div class="cta">
-      <a class="button primary" href="https://github.com/cYoren/asciipaper/releases/latest">⬇ Windows</a>
+      <a class="button primary" href="https://github.com/cYoren/asciipaper-engine/releases/latest">⬇ Windows</a>
       <a class="button" href="#install">Linux</a>
       <a class="button" href="#install">macOS</a>
-      <a class="button" href="https://github.com/cYoren/asciipaper/releases/latest">Android</a>
-      <a class="button" href="https://github.com/cYoren/asciipaper">★ GitHub</a>
+      <a class="button" href="https://github.com/cYoren/asciipaper-engine/releases/latest">Android</a>
+      <a class="button" href="https://github.com/cYoren/asciipaper-engine">★ GitHub</a>
     </div>
   </div>
   <nav class="styles" aria-label="Try a style">
@@ -108,17 +108,18 @@
   <section class="platforms" id="install">
     <h2>Get it</h2>
     <div class="grid">
-      <div class="card"><h3>Windows 10 and 11</h3><p>Download the installer from <a href="https://github.com/cYoren/asciipaper/releases/latest">Releases</a> and run it. No admin rights needed. It lives in the tray and starts with Windows.</p></div>
+      <div class="card"><h3>Windows 10 and 11</h3><p>Download the installer from <a href="https://github.com/cYoren/asciipaper-engine/releases/latest">Releases</a> and run it. No admin rights needed. It lives in the tray and starts with Windows.</p></div>
       <div class="card"><h3>Linux</h3><p>Hyprland, KDE Plasma, Sway, niri, COSMIC and other Wayland desktops.</p></div>
-      <div class="card"><h3>Android</h3><p>A live wallpaper for your phone. Download the <code>.apk</code> from <a href="https://github.com/cYoren/asciipaper/releases/latest">Releases</a>, open asciipaper, pick a wallpaper and a style, and set it. It ripples under your finger.</p></div>
+      <div class="card"><h3>Android</h3><p>A live wallpaper for your phone. Download the <code>.apk</code> from <a href="https://github.com/cYoren/asciipaper-engine/releases/latest">Releases</a>, open asciipaper, pick a wallpaper and a style, and set it. It ripples under your finger.</p></div>
       <div class="card"><h3>macOS</h3><p>Export any wallpaper as a ZIP (from Windows or Linux, or one a friend shares), unzip, and open <code>index.html</code> in the free <a href="https://sindresorhus.com/plash">Plash</a> app.</p></div>
     </div>
-    <pre>git clone https://github.com/cYoren/asciipaper &amp;&amp; cd asciipaper &amp;&amp; ./install.sh   # Linux
-claude mcp add --scope user asciipaper -- asciipaper mcp                            # let Claude design wallpapers</pre>
+    <pre>git clone https://github.com/cYoren/asciipaper-engine &amp;&amp; cd asciipaper-engine &amp;&amp; make   # engine
+./native/asciipaper-engine plasma                                                      # live, Wayland
+python3 -m http.server -d wallpapers 8000                                              # then /run.html</pre>
   </section>
 </main>
 
-<footer>MIT licensed · <a href="https://github.com/cYoren/asciipaper">github.com/cYoren/asciipaper</a> · Fluid is an offline port of asciify.org's (MIT)</footer>
+<footer>MIT licensed · <a href="https://github.com/cYoren/asciipaper-engine">github.com/cYoren/asciipaper-engine</a> · Fluid is an offline port of asciify.org's (MIT)</footer>
 
 <script>
   const STYLES = [['fluid', 'Fluid'], ['lego', 'LEGO'], ['crt', 'CRT'], ['gameboy', 'Game Boy'], ['cmyk', 'CMYK print'],
